@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "algorithm",
     "catalog",
     "common",
     "parser",
