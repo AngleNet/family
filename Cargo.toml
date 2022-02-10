@@ -1,7 +1,8 @@
 [workspace]
 members = [
-    "parser",
     "catalog",
+    "common",
+    "parser",
     "plan",
     "optimizer"
 ]

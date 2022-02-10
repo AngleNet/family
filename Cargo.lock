@@ -53,6 +53,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "common"
+version = "0.1.0"
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -152,6 +156,11 @@ dependencies = [
 [[package]]
 name = "plan"
 version = "0.1.0"
+dependencies = [
+ "catalog",
+ "common",
+ "parser",
+]
 
 [[package]]
 name = "proc-macro2"

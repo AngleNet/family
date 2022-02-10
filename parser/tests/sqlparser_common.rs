@@ -20,6 +20,7 @@
 
 #[macro_use]
 mod test_utils;
+
 use matches::assert_matches;
 use parser::ast::*;
 use parser::dialect::{GenericDialect, PostgreSqlDialect, SQLiteDialect};
@@ -201,19 +202,19 @@ fn parse_update_with_table_alias() {
                         name: ObjectName(vec![Ident::new("users")]),
                         alias: Some(TableAlias {
                             name: Ident::new("u"),
-                            columns: vec![]
+                            columns: vec![],
                         }),
                         args: vec![],
                         with_hints: vec![],
                     },
-                    joins: vec![]
+                    joins: vec![],
                 },
                 table
             );
             assert_eq!(
                 vec![Assignment {
                     id: vec![Ident::new("u"), Ident::new("username")],
-                    value: Expr::Value(Value::SingleQuotedString("new_user".to_string()))
+                    value: Expr::Value(Value::SingleQuotedString("new_user".to_string())),
                 }],
                 assignments
             );
@@ -221,12 +222,12 @@ fn parse_update_with_table_alias() {
                 Some(Expr::BinaryOp {
                     left: Box::new(Expr::CompoundIdentifier(vec![
                         Ident::new("u"),
-                        Ident::new("username")
+                        Ident::new("username"),
                     ])),
                     op: BinaryOperator::Eq,
                     right: Box::new(Expr::Value(Value::SingleQuotedString(
                         "old_user".to_string()
-                    )))
+                    ))),
                 }),
                 selection
             );
@@ -529,7 +530,7 @@ fn parse_select_with_date_column_name() {
     assert_eq!(
         &Expr::Identifier(Ident {
             value: "date".into(),
-            quote_style: None
+            quote_style: None,
         }),
         expr_from_projection(only(&select.projection)),
     );
@@ -547,7 +548,7 @@ fn parse_escaped_single_quote_string_predicate() {
             op: NotEq,
             right: Box::new(Expr::Value(Value::SingleQuotedString(
                 "Jim's salary".to_string()
-            )))
+            ))),
         }),
         ast.selection,
     );
@@ -579,8 +580,8 @@ fn parse_compound_expr_1() {
             right: Box::new(BinaryOp {
                 left: Box::new(Identifier(Ident::new("b"))),
                 op: Multiply,
-                right: Box::new(Identifier(Ident::new("c")))
-            })
+                right: Box::new(Identifier(Ident::new("c"))),
+            }),
         },
         verified_expr(sql)
     );
@@ -596,10 +597,10 @@ fn parse_compound_expr_2() {
             left: Box::new(BinaryOp {
                 left: Box::new(Identifier(Ident::new("a"))),
                 op: Multiply,
-                right: Box::new(Identifier(Ident::new("b")))
+                right: Box::new(Identifier(Ident::new("b"))),
             }),
             op: Plus,
-            right: Box::new(Identifier(Ident::new("c")))
+            right: Box::new(Identifier(Ident::new("c"))),
         },
         verified_expr(sql)
     );
@@ -652,11 +653,12 @@ fn parse_is_distinct_from() {
     assert_eq!(
         IsDistinctFrom(
             Box::new(Identifier(Ident::new("a"))),
-            Box::new(Identifier(Ident::new("b")))
+            Box::new(Identifier(Ident::new("b"))),
         ),
         verified_expr(sql)
     );
 }
+
 #[test]
 fn parse_is_not_distinct_from() {
     use self::Expr::*;
@@ -664,7 +666,7 @@ fn parse_is_not_distinct_from() {
     assert_eq!(
         IsNotDistinctFrom(
             Box::new(Identifier(Ident::new("a"))),
-            Box::new(Identifier(Ident::new("b")))
+            Box::new(Identifier(Ident::new("b"))),
         ),
         verified_expr(sql)
     );
@@ -1113,7 +1115,7 @@ fn parse_select_group_by_grouping_sets() {
                 vec![Expr::Identifier(Ident::new("brand"))],
                 vec![Expr::Identifier(Ident::new("size"))],
                 vec![],
-            ])
+            ]),
         ],
         select.group_by
     );
@@ -1132,7 +1134,7 @@ fn parse_select_group_by_rollup() {
             Expr::Rollup(vec![
                 vec![Expr::Identifier(Ident::new("brand"))],
                 vec![Expr::Identifier(Ident::new("size"))],
-            ])
+            ]),
         ],
         select.group_by
     );
@@ -1151,7 +1153,7 @@ fn parse_select_group_by_cube() {
             Expr::Cube(vec![
                 vec![Expr::Identifier(Ident::new("brand"))],
                 vec![Expr::Identifier(Ident::new("size"))],
-            ])
+            ]),
         ],
         select.group_by
     );
@@ -1170,7 +1172,7 @@ fn parse_select_having() {
                 distinct: false,
             })),
             op: BinaryOperator::Gt,
-            right: Box::new(Expr::Value(number("1")))
+            right: Box::new(Expr::Value(number("1"))),
         }),
         select.having
     );
@@ -1195,7 +1197,7 @@ fn parse_cast() {
     assert_eq!(
         &Expr::Cast {
             expr: Box::new(Expr::Identifier(Ident::new("id"))),
-            data_type: DataType::BigInt(None)
+            data_type: DataType::BigInt(None),
         },
         expr_from_projection(only(&select.projection))
     );
@@ -1205,7 +1207,7 @@ fn parse_cast() {
     assert_eq!(
         &Expr::Cast {
             expr: Box::new(Expr::Identifier(Ident::new("id"))),
-            data_type: DataType::TinyInt(None)
+            data_type: DataType::TinyInt(None),
         },
         expr_from_projection(only(&select.projection))
     );
@@ -1235,7 +1237,7 @@ fn parse_try_cast() {
     assert_eq!(
         &Expr::TryCast {
             expr: Box::new(Expr::Identifier(Ident::new("id"))),
-            data_type: DataType::BigInt(None)
+            data_type: DataType::BigInt(None),
         },
         expr_from_projection(only(&select.projection))
     );
@@ -1330,7 +1332,7 @@ fn parse_listagg() {
                 ", ".to_string()
             )))),
             on_overflow,
-            within_group
+            within_group,
         }),
         expr_from_projection(only(&select.projection))
     );
@@ -1386,7 +1388,7 @@ fn parse_create_table() {
                         collation: None,
                         options: vec![ColumnOptionDef {
                             name: None,
-                            option: ColumnOption::NotNull
+                            option: ColumnOption::NotNull,
                         }],
                     },
                     ColumnDef {
@@ -1395,7 +1397,7 @@ fn parse_create_table() {
                         collation: None,
                         options: vec![ColumnOptionDef {
                             name: None,
-                            option: ColumnOption::Null
+                            option: ColumnOption::Null,
                         }],
                     },
                     ColumnDef {
@@ -1411,15 +1413,15 @@ fn parse_create_table() {
                         options: vec![
                             ColumnOptionDef {
                                 name: None,
-                                option: ColumnOption::Null
+                                option: ColumnOption::Null,
                             },
                             ColumnOptionDef {
                                 name: Some("pkey".into()),
-                                option: ColumnOption::Unique { is_primary: true }
+                                option: ColumnOption::Unique { is_primary: true },
                             },
                             ColumnOptionDef {
                                 name: None,
-                                option: ColumnOption::NotNull
+                                option: ColumnOption::NotNull,
                             },
                             ColumnOptionDef {
                                 name: None,
@@ -1428,7 +1430,7 @@ fn parse_create_table() {
                             ColumnOptionDef {
                                 name: None,
                                 option: ColumnOption::Check(verified_expr("constrained > 0")),
-                            }
+                            },
                         ],
                     },
                     ColumnDef {
@@ -1439,11 +1441,11 @@ fn parse_create_table() {
                             name: None,
                             option: ColumnOption::ForeignKey {
                                 foreign_table: ObjectName(vec!["othertable".into()]),
-                                referred_columns: vec!["a".into(), "b".into(),],
+                                referred_columns: vec!["a".into(), "b".into()],
                                 on_delete: None,
                                 on_update: None,
-                            }
-                        }]
+                            },
+                        }],
                     },
                     ColumnDef {
                         name: "ref2".into(),
@@ -1456,9 +1458,9 @@ fn parse_create_table() {
                                 referred_columns: vec![],
                                 on_delete: Some(ReferentialAction::Cascade),
                                 on_update: Some(ReferentialAction::NoAction),
-                            }
-                        },]
-                    }
+                            },
+                        },],
+                    },
                 ]
             );
             assert_eq!(
@@ -1470,7 +1472,7 @@ fn parse_create_table() {
                         foreign_table: ObjectName(vec!["othertable3".into()]),
                         referred_columns: vec!["lat".into()],
                         on_delete: Some(ReferentialAction::Restrict),
-                        on_update: None
+                        on_update: None,
                     },
                     TableConstraint::ForeignKey {
                         name: Some("fkey2".into()),
@@ -1478,7 +1480,7 @@ fn parse_create_table() {
                         foreign_table: ObjectName(vec!["othertable4".into()]),
                         referred_columns: vec!["lat".into()],
                         on_delete: Some(ReferentialAction::NoAction),
-                        on_update: Some(ReferentialAction::Restrict)
+                        on_update: Some(ReferentialAction::Restrict),
                     },
                     TableConstraint::ForeignKey {
                         name: None,
@@ -1486,7 +1488,7 @@ fn parse_create_table() {
                         foreign_table: ObjectName(vec!["othertable4".into()]),
                         referred_columns: vec!["lat".into()],
                         on_delete: Some(ReferentialAction::Cascade),
-                        on_update: Some(ReferentialAction::SetDefault)
+                        on_update: Some(ReferentialAction::SetDefault),
                     },
                     TableConstraint::ForeignKey {
                         name: None,
@@ -1494,7 +1496,7 @@ fn parse_create_table() {
                         foreign_table: ObjectName(vec!["othertable4".into()]),
                         referred_columns: vec!["longitude".into()],
                         on_delete: None,
-                        on_update: Some(ReferentialAction::SetNull)
+                        on_update: Some(ReferentialAction::SetNull),
                     },
                 ]
             );
@@ -1681,11 +1683,11 @@ fn parse_create_table_with_options() {
                 vec![
                     SqlOption {
                         name: "foo".into(),
-                        value: Value::SingleQuotedString("bar".into())
+                        value: Value::SingleQuotedString("bar".into()),
                     },
                     SqlOption {
                         name: "a".into(),
-                        value: number("123")
+                        value: number("123"),
                     },
                 ],
                 with_options
@@ -1738,7 +1740,7 @@ fn parse_create_external_table() {
                         collation: None,
                         options: vec![ColumnOptionDef {
                             name: None,
-                            option: ColumnOption::NotNull
+                            option: ColumnOption::NotNull,
                         }],
                     },
                     ColumnDef {
@@ -1747,7 +1749,7 @@ fn parse_create_external_table() {
                         collation: None,
                         options: vec![ColumnOptionDef {
                             name: None,
-                            option: ColumnOption::Null
+                            option: ColumnOption::Null,
                         }],
                     },
                     ColumnDef {
@@ -1806,7 +1808,7 @@ fn parse_create_or_replace_external_table() {
                     collation: None,
                     options: vec![ColumnOptionDef {
                         name: None,
-                        option: ColumnOption::NotNull
+                        option: ColumnOption::NotNull,
                     }],
                 },]
             );
@@ -2248,7 +2250,7 @@ fn parse_literal_date() {
     assert_eq!(
         &Expr::TypedString {
             data_type: DataType::Date,
-            value: "1999-01-01".into()
+            value: "1999-01-01".into(),
         },
         expr_from_projection(only(&select.projection)),
     );
@@ -2261,7 +2263,7 @@ fn parse_literal_time() {
     assert_eq!(
         &Expr::TypedString {
             data_type: DataType::Time,
-            value: "01:23:34".into()
+            value: "01:23:34".into(),
         },
         expr_from_projection(only(&select.projection)),
     );
@@ -2274,7 +2276,7 @@ fn parse_literal_timestamp() {
     assert_eq!(
         &Expr::TypedString {
             data_type: DataType::Timestamp,
-            value: "1999-01-01 01:23:34".into()
+            value: "1999-01-01 01:23:34".into(),
         },
         expr_from_projection(only(&select.projection)),
     );
@@ -2464,7 +2466,7 @@ fn parse_delimited_identifiers() {
     assert_eq!(
         &Expr::CompoundIdentifier(vec![
             Ident::with_quote('"', "alias"),
-            Ident::with_quote('"', "bar baz")
+            Ident::with_quote('"', "bar baz"),
         ]),
         expr_from_projection(&select.projection[0]),
     );
@@ -2500,14 +2502,14 @@ fn parse_parens() {
             left: Box::new(Nested(Box::new(BinaryOp {
                 left: Box::new(Identifier(Ident::new("a"))),
                 op: Plus,
-                right: Box::new(Identifier(Ident::new("b")))
+                right: Box::new(Identifier(Ident::new("b"))),
             }))),
             op: Minus,
             right: Box::new(Nested(Box::new(BinaryOp {
                 left: Box::new(Identifier(Ident::new("c"))),
                 op: Plus,
-                right: Box::new(Identifier(Ident::new("d")))
-            })))
+                right: Box::new(Identifier(Ident::new("d"))),
+            }))),
         },
         verified_expr(sql)
     );
@@ -2527,22 +2529,22 @@ fn parse_searched_case_expr() {
                 BinaryOp {
                     left: Box::new(Identifier(Ident::new("bar"))),
                     op: Eq,
-                    right: Box::new(Expr::Value(number("0")))
+                    right: Box::new(Expr::Value(number("0"))),
                 },
                 BinaryOp {
                     left: Box::new(Identifier(Ident::new("bar"))),
                     op: GtEq,
-                    right: Box::new(Expr::Value(number("0")))
-                }
+                    right: Box::new(Expr::Value(number("0"))),
+                },
             ],
             results: vec![
                 Expr::Value(Value::SingleQuotedString("null".to_string())),
                 Expr::Value(Value::SingleQuotedString("=0".to_string())),
-                Expr::Value(Value::SingleQuotedString(">=0".to_string()))
+                Expr::Value(Value::SingleQuotedString(">=0".to_string())),
             ],
             else_result: Some(Box::new(Expr::Value(Value::SingleQuotedString(
                 "<0".to_string()
-            ))))
+            )))),
         },
         expr_from_projection(only(&select.projection)),
     );
@@ -2558,10 +2560,10 @@ fn parse_simple_case_expr() {
         &Case {
             operand: Some(Box::new(Identifier(Ident::new("foo")))),
             conditions: vec![Expr::Value(number("1"))],
-            results: vec![Expr::Value(Value::SingleQuotedString("Y".to_string())),],
+            results: vec![Expr::Value(Value::SingleQuotedString("Y".to_string()))],
             else_result: Some(Box::new(Expr::Value(Value::SingleQuotedString(
                 "N".to_string()
-            ))))
+            )))),
         },
         expr_from_projection(only(&select.projection)),
     );
@@ -2596,7 +2598,7 @@ fn parse_implicit_join() {
                     with_hints: vec![],
                 },
                 joins: vec![],
-            }
+            },
         ],
         select.from,
     );
@@ -2620,7 +2622,7 @@ fn parse_implicit_join() {
                         with_hints: vec![],
                     },
                     join_operator: JoinOperator::Inner(JoinConstraint::Natural),
-                }]
+                }],
             },
             TableWithJoins {
                 relation: TableFactor::Table {
@@ -2637,8 +2639,8 @@ fn parse_implicit_join() {
                         with_hints: vec![],
                     },
                     join_operator: JoinOperator::Inner(JoinConstraint::Natural),
-                }]
-            }
+                }],
+            },
         ],
         select.from,
     );
@@ -2656,7 +2658,7 @@ fn parse_cross_join() {
                 args: vec![],
                 with_hints: vec![],
             },
-            join_operator: JoinOperator::CrossJoin
+            join_operator: JoinOperator::CrossJoin,
         },
         only(only(select.from).joins),
     );
@@ -2689,7 +2691,7 @@ fn parse_joins_on() {
         vec![join_with_constraint(
             "t2",
             table_alias("foo"),
-            JoinOperator::Inner
+            JoinOperator::Inner,
         )]
     );
     one_statement_parses_to(
@@ -2738,7 +2740,7 @@ fn parse_joins_using() {
         vec![join_with_constraint(
             "t2",
             table_alias("foo"),
-            JoinOperator::Inner
+            JoinOperator::Inner,
         )]
     );
     one_statement_parses_to(
@@ -2815,7 +2817,7 @@ fn parse_join_nesting() {
         only(&verified_only_select(sql).from).joins,
         vec![
             join(nest!(table("b"), nest!(table("c"), table("d"), table("e")))),
-            join(nest!(table("f"), nest!(table("g"), table("h"))))
+            join(nest!(table("f"), nest!(table("g"), table("h")))),
         ],
     );
 
@@ -3003,7 +3005,7 @@ fn parse_derived_tables() {
                 alias: Some(TableAlias {
                     name: "t1".into(),
                     columns: vec![],
-                })
+                }),
             },
             joins: vec![Join {
                 relation: TableFactor::Table {
@@ -3211,11 +3213,11 @@ fn parse_create_view_with_options() {
                 vec![
                     SqlOption {
                         name: "foo".into(),
-                        value: Value::SingleQuotedString("bar".into())
+                        value: Value::SingleQuotedString("bar".into()),
                     },
                     SqlOption {
                         name: "a".into(),
-                        value: number("123")
+                        value: number("123"),
                     },
                 ],
                 with_options
@@ -3247,6 +3249,7 @@ fn parse_create_view_with_columns() {
         _ => unreachable!(),
     }
 }
+
 #[test]
 fn parse_create_or_replace_view() {
     let sql = "CREATE OR REPLACE VIEW v AS SELECT 1";
@@ -3806,6 +3809,7 @@ fn parse_create_index() {
         _ => unreachable!(),
     }
 }
+
 #[test]
 fn parse_drop_index() {
     let sql = "DROP INDEX idx_a";
@@ -3844,12 +3848,12 @@ fn parse_grant() {
                             columns: Some(vec![
                                 Ident {
                                     value: "shape".into(),
-                                    quote_style: None
+                                    quote_style: None,
                                 },
                                 Ident {
                                     value: "size".into(),
-                                    quote_style: None
-                                }
+                                    quote_style: None,
+                                },
                             ])
                         },
                         Action::Usage,
