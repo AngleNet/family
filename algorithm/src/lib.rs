@@ -1,6 +1,6 @@
-mod tenth;
 mod eighty_four;
 mod six_one_seven;
+mod tenth;
 
 #[cfg(test)]
 mod tests {

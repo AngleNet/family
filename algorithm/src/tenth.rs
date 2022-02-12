@@ -40,6 +40,9 @@ mod test {
     #[test]
     fn test_34() {
         assert_eq!(vec![0, 0], Solution34::search_range(vec![1, 3], 1));
-        assert_eq!(vec![3, 4], Solution34::search_range(vec![5, 7, 7, 8, 8, 10], 8))
+        assert_eq!(
+            vec![3, 4],
+            Solution34::search_range(vec![5, 7, 7, 8, 8, 10], 8)
+        )
     }
 }
