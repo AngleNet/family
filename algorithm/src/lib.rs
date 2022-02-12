@@ -1,4 +1,6 @@
 mod tenth;
+mod eighty_four;
+mod six_one_seven;
 
 #[cfg(test)]
 mod tests {
