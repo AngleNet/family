@@ -2,21 +2,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct TreeNode {
+struct TreeNode {
     pub val: i32,
     pub left: Option<Rc<RefCell<TreeNode>>>,
     pub right: Option<Rc<RefCell<TreeNode>>>,
-}
-
-impl TreeNode {
-    #[inline]
-    pub fn new(val: i32) -> Self {
-        TreeNode {
-            val,
-            left: None,
-            right: None,
-        }
-    }
 }
 
 struct Solution {}
@@ -30,7 +19,7 @@ impl Solution {
             Some(ref a) => match root2 {
                 Some(ref b) => {
                     let mut a = a.borrow_mut();
-                    let mut b = b.borrow_mut();
+                    let b = b.borrow_mut();
                     a.val = a.val + b.val;
                     a.left =
                         Solution::merge_trees(a.left.as_ref().cloned(), b.left.as_ref().cloned());

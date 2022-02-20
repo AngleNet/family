@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use core::fmt::Write;
-use std::fmt::format;
 
-struct Solution {}
+
+
+struct Solution;
 
 impl Solution {
     pub fn group_anagrams(strs: Vec<String>) -> Vec<Vec<String>> {

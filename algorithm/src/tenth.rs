@@ -1,12 +1,12 @@
-struct Solution34 {}
+struct Solution34;
 
 impl Solution34 {
-    pub fn search_range(nums: Vec<i32>, target: i32) -> Vec<i32> {
+    fn search_range(nums: Vec<i32>, target: i32) -> Vec<i32> {
         let (s, e) = Solution34::search_range_rec(&nums, 0, nums.len() as i32 - 1, target);
         return vec![s, e];
     }
 
-    pub fn search_range_rec(nums: &Vec<i32>, i: i32, j: i32, target: i32) -> (i32, i32) {
+    fn search_range_rec(nums: &Vec<i32>, i: i32, j: i32, target: i32) -> (i32, i32) {
         if i > j || target < nums[i as usize] || target > nums[j as usize] {
             return (-1, -1);
         }
@@ -19,7 +19,7 @@ impl Solution34 {
         } else if nums[k as usize] > target {
             return Solution34::search_range_rec(nums, i, k - 1, target);
         }
-        let (ls, le) = Solution34::search_range_rec(nums, i, k - 1, target);
+        let (ls, _le) = Solution34::search_range_rec(nums, i, k - 1, target);
         let (rs, re) = Solution34::search_range_rec(nums, k + 1, j, target);
         if ls == -1 && rs == -1 {
             return (k, k);
