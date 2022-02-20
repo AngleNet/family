@@ -1,3 +1,11 @@
-pub enum ErrorCode {}
+pub struct FamilyError {
+    pub msg: String,
+}
 
-pub type Result<T> = std::result::Result<T, ErrorCode>;
+impl FamilyError {
+    pub fn with(msg: String) -> FamilyError{
+        FamilyError { msg }
+    }
+}
+
+pub type Result<T> = std::result::Result<T, FamilyError>;
