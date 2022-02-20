@@ -9,3 +9,11 @@ pub enum FunctionData {
 pub struct TableScanBindData {
     pub table: TableCatalogEntryRef,
 }
+
+impl TableScanBindData {
+    pub fn new(table: TableCatalogEntryRef) -> Self {
+        TableScanBindData {
+            table
+        }
+    }
+}

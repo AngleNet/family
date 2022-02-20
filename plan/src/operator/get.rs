@@ -14,7 +14,15 @@ pub struct LogicalGet {
 }
 
 impl LogicalGet {
-    pub fn new() -> Self {
-        todo!()
+    pub fn new(table_index: IdxType, function: TableFunction, bind_data: TableScanBindData,
+               types: Vec<LogicalType>, names: Vec<String>) -> Self {
+        LogicalGet {
+            table_index,
+            function,
+            bind_data,
+            returned_types: types,
+            names,
+            column_ids: vec![],
+        }
     }
 }

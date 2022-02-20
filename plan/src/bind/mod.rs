@@ -1,3 +1,7 @@
+mod context;
+mod binding;
+mod bound;
+
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::format;
@@ -38,7 +42,8 @@ impl Binder {
                 }
                 BoundTableRef::BaseTable(BoundBaseTableRef {
                     table: e.clone(),
-                    get: LogicalGet::new(),
+                    get: LogicalGet::new(idx, scan, TableScanBindData::new(e.clone()),
+                                         col_types, col_names),
                 })
             }
             CatalogEntry::ViewEntry => {
@@ -48,7 +53,7 @@ impl Binder {
                 todo!()
             }
         };
-        todo!()
+        Ok(bound)
     }
 
     pub fn generate_table_index(&mut self) -> IdxType {
@@ -83,6 +88,13 @@ pub enum BoundTableRef {
 pub struct BoundBaseTableRef {
     pub table: TableCatalogEntryRef,
     pub get: LogicalGet,
+}
+
+/// Tracks all the tables and columns that are encountered during the binding process
+pub struct BindContext {}
+
+impl BindContext {
+
 }
 
 #[cfg(test)]
