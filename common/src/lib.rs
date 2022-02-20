@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 pub mod error;
 pub mod types;
 pub mod catalog;

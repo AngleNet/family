@@ -1,8 +1,11 @@
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::format;
+use std::rc::Rc;
 use common::catalog::{CatalogEntry, CatalogType, IdxType, TableCatalogEntry, TableCatalogEntryRef};
 use common::context::ClientContext;
 use common::function::table::TableFunction;
+use common::function::TableScanBindData;
 use crate::ast::{BaseTableRef, QueryNode, SelectNode};
 use common::prelude::*;
 use crate::operator::get::LogicalGet;
@@ -29,13 +32,21 @@ impl Binder {
                 let idx = self.generate_table_index();
                 let mut col_types = vec![];
                 let mut col_names = vec![];
-                for col in &e.columns {
+                for col in &e.borrow().columns {
                     col_types.push(col.column_type);
                     col_names.push(col.name.clone());
                 }
+                BoundTableRef::BaseTable(BoundBaseTableRef {
+                    table: e.clone(),
+                    get: LogicalGet::new(),
+                })
             }
-            CatalogEntry::ViewEntry => {}
-            _ => {}
+            CatalogEntry::ViewEntry => {
+                todo!()
+            }
+            _ => {
+                todo!()
+            }
         };
         todo!()
     }
@@ -76,8 +87,6 @@ pub struct BoundBaseTableRef {
 
 #[cfg(test)]
 pub mod test {
-
     #[test]
-    pub fn test() {
-    }
+    pub fn test() {}
 }

@@ -25,8 +25,8 @@ impl Catalog {
 }
 
 pub enum CatalogEntry {
-    Schema(SchemaCatalogEntry),
-    TableEntry(TableCatalogEntry),
+    Schema(SchemaCatalogEntryRef),
+    TableEntry(TableCatalogEntryRef),
     ViewEntry,
 }
 
@@ -55,6 +55,6 @@ pub struct TableCatalogEntry {
     pub columns: Vec<ColumnDefinition>,
 }
 
-pub type TableCatalogEntryRef  = Rc<RefCell<TableCatalogEntry>>;
+pub type TableCatalogEntryRef = Rc<RefCell<TableCatalogEntry>>;
 
 pub struct ViewCatalogEntry {}
