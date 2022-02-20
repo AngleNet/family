@@ -1,3 +1,3 @@
-pub enum DataBox {}
 
-pub enum DataType {}
+#[derive(Copy, Clone)]
+pub enum LogicalType {}
