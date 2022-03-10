@@ -7,16 +7,5 @@ name = "algorithm"
 version = "0.1.0"
 
 [[package]]
-name = "common"
+name = "query"
 version = "0.1.0"
-
-[[package]]
-name = "optimizer"
-version = "0.1.0"
-
-[[package]]
-name = "plan"
-version = "0.1.0"
-dependencies = [
- "common",
-]
