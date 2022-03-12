@@ -1,3 +1,3 @@
-mod disk;
+pub mod disk;
 pub mod page;
-mod table;
+pub mod table;

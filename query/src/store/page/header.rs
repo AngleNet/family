@@ -1,2 +1,24 @@
+use crate::config::PageIdType;
 
+/**
+ * Database use the first page (page_id = 0) as header page to store metadata, in
+ * our case, we will contain information about table/index name (length less than
+ * 32 bytes) and their corresponding root_id
+ *
+ * Format (size in byte):
+ *  -----------------------------------------------------------------
+ * | RecordCount (4) | Entry_1 name (32) | Entry_1 root_id (4) | ... |
+ *  -----------------------------------------------------------------
+ */
 pub struct HeaderPage {}
+
+impl HeaderPage {
+
+ pub fn insert_record(&mut self, name: &str, root_id: PageIdType)  {
+ }
+
+ pub fn delete_record(&mut self, name: &str) {}
+
+ pub fn update_record(&mut self, name: &str, root_id: PageIdType) {}
+
+}

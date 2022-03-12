@@ -1,5 +1,6 @@
 use std::fmt::format;
 use std::fs::{File, OpenOptions};
+use std::sync::{Arc, RwLock};
 use crate::fail;
 
 pub type PageIdType = i64;
@@ -10,6 +11,8 @@ pub struct DiskManager {
     database: File,
     log: File,
 }
+
+pub type DiskManagerRef = Arc<RwLock<DiskManager>>;
 
 impl DiskManager {
     pub fn new(name: &str) -> DiskManager {
