@@ -1,3 +1,4 @@
+#![feature(thread_is_running)]
 #![allow(unused)]
 #![allow(dead_code)]
 mod catalog;
