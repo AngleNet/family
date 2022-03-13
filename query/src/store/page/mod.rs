@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 use std::ops::{Deref, DerefMut};
+use std::str::from_utf8;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::config::PAGE_SIZE;
 use crate::store::disk::PageIdType;
@@ -34,6 +35,41 @@ impl Page {
 
 	pub fn data_mut(&mut self) -> &mut [u8] {
 		&mut self.data
+	}
+
+	#[inline]
+	pub fn write(&mut self, offset: usize, buf: &[u8]) {
+		assert!(self.data.len() - offset >= buf.len());
+		self.data[offset..(offset + buf.len())].copy_from_slice(buf);
+	}
+
+	#[inline]
+	pub fn write_str(&mut self, offset: usize, s: &str) {
+		assert!(s.len() < self.data.len() - offset);
+		self.write(offset, s.as_bytes());
+		self.data[offset + s.len()] = b'\0';
+	}
+
+	pub fn read_str(&self, offset: usize) -> &str {
+		let mut end = offset;
+		for i in offset..self.data.len() {
+			end = i;
+			if self.data[i] == b'\0' {
+				break;
+			}
+		}
+		from_utf8(&self.data[offset..end]).unwrap()
+	}
+
+	#[inline]
+	pub fn read_u32(&self, offset: usize) -> u32 {
+		assert!(self.data.len() - offset >= 4);
+		u32::from_be_bytes(self.data[offset..(offset + 4)].try_into().unwrap())
+	}
+
+	#[inline]
+	pub fn write_u32(&mut self, offset: usize, n: u32) {
+		self.write(offset, n.to_be_bytes().as_slice());
 	}
 }
 
@@ -88,5 +124,14 @@ mod test {
 		thread::sleep(Duration::from_secs(1));
 		assert!(!read.is_running());
 		read.join().unwrap();
+	}
+
+	#[test]
+	fn test_read_str() {
+		let mut page = Page::new(10);
+		assert_eq!("", page.read_str(0));
+		page.write_str(1, "hello");
+		assert_eq!("hello", page.read_str(1));
+		assert_eq!("ello", page.read_str(2));
 	}
 }

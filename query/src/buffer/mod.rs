@@ -19,7 +19,7 @@ impl BufferPoolManager {
 	}
 
 	pub fn new_page(&mut self) -> Option<Page> {
-		todo!()
+		None
 	}
 
 	pub fn fetch_page(&mut self, page_id: PageIdType) -> Page {

@@ -39,36 +39,72 @@ impl HeaderPage {
 	pub fn insert_record(&mut self, name: &str, root_it: PageIdType) {
 		assert!(name.len() < RECORD_NAME_LEN);
 		assert!(root_it > INVALID_PAGE_ID);
-		let num = self.len();
+		let num = self.num_records();
 		assert!((num as usize) < MAX_RECORDS_PER_PAGE);
 		if self.find_record(name).is_some() {
 			fail!("record '{}' has already existed in header page", name);
 		}
-		let offset = num * RECORD_LEN + RECORD_NUMS_LEN;
-		self.page.data[..].copy_from_slice(name.as_bytes())
+		let mut offset = num * RECORD_LEN + RECORD_NUMS_LEN;
+		self.page.data[offset..(offset + name.len())].copy_from_slice(name.as_bytes());
+		offset += RECORD_NAME_LEN;
+		self.page.data[offset..(offset + ROOT_ID_LEN)].copy_from_slice(&u32::to_be_bytes(root_it as u32));
+		self.write_record_count(num + 1);
+	}
+
+	pub fn update_record(&mut self, name: &str, root_id: PageIdType) {
+		assert!(root_id > INVALID_PAGE_ID);
+		if let Some(offset) = self.find_record(name) {
+			self.page.write_u32(offset + RECORD_NAME_LEN, root_id as u32);
+			return;
+		}
+		fail!("record named '{}' does not exist", name);
 	}
 
 	pub fn fetch_record(&self, name: &str) -> Option<PageIdType> {
-		todo!()
+		if let Some(offset) = self.find_record(name) {
+			return Some(self.page.read_u32(offset + RECORD_NAME_LEN) as PageIdType);
+		}
+		return None;
 	}
 
 	#[inline]
-	pub fn len(&self) -> usize {
-		u32::from_be_bytes(self.page.data[..4].try_into().unwrap()) as usize
+	pub fn num_records(&self) -> usize {
+		self.page.read_u32(0) as usize
 	}
 
-	pub fn write_record_count(&mut self, count: u32) {}
+	pub fn write_record_count(&mut self, count: usize) {
+		self.page.write_u32(0, count as u32);
+	}
 
-	fn find_record(&mut self, name: &str) -> Option<u32> {
-		todo!()
+	fn find_record(&self, name: &str) -> Option<usize> {
+		assert!(name.len() <= RECORD_NAME_LEN);
+		let num = self.num_records();
+		let mut offset = RECORD_NUMS_LEN;
+		for i in 0..num {
+			if name.eq(self.page.read_str(offset)) {
+				return Some(offset);
+			}
+			offset += RECORD_LEN;
+		}
+		return None;
 	}
 }
 
 #[cfg(test)]
 mod test {
+	use crate::store::page::{Page, PageRef};
+
 	#[test]
-	fn test() {
-		let mut x = [0_u8; 10];
-		let y = "x".as_bytes();
+	fn read_write_records() {
+		let page: PageRef = Page::new(1).into();
+		let mut lock = page.write().unwrap();
+		let header = lock.as_mut();
+		assert_eq!(0, header.num_records());
+		header.insert_record("r1", 1);
+		assert_eq!(1, header.num_records());
+		header.insert_record("r2", 2);
+		assert_eq!(2, header.num_records());
+		assert_eq!(1, header.fetch_record("r1").unwrap());
+		assert_eq!(2, header.fetch_record("r2").unwrap());
 	}
 }
