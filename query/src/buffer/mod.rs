@@ -2,6 +2,7 @@ pub mod replacer;
 
 use std::borrow::Borrow;
 use std::collections::{HashMap, LinkedList};
+use std::intrinsics::truncf32;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicU32, Ordering};
 use crate::buffer::replacer::{LRUReplacer, Replacer};
@@ -32,12 +33,17 @@ impl<R: Replacer> BufferPoolManager<R> {
 		}
 	}
 
-	pub fn new_page(&mut self) -> PageRef {
-		// todo: What if no victims could be found?
+	pub fn new_page(&mut self) -> Option<PageRef> {
 		let mut free = self.free_frames.pop_front();
+		let mut new = false;
 		if free.is_none() {
-			// this will block until we have found an victim actually
+			// fixme: If we block here with lock held, any thread want to unpin a page will have to
+			// wait for this which leads to deadlock
 			free = self.replacer.victim();
+			new = true;
+		}
+		if free.is_none() {
+			return None;
 		}
 		let frame = Arc::clone(&self.frames[free.unwrap() as usize]);
 		let mut page = frame.write().unwrap();
@@ -46,14 +52,25 @@ impl<R: Replacer> BufferPoolManager<R> {
 			disk.write_page(page.id(), page.data());
 		}
 		page.reset(self.next_page_id());
-		return frame;
+		if new {
+			self.page_table.insert(page.id(), free.unwrap());
+		}
+		return Some(frame);
 	}
 
-	pub fn fetch_page(&mut self, page_id: PageIdType) -> PageRef {
-		let mut free = self.free_frames.pop_front();
-		if free.is_none() {
-			free = self.replacer.victim();
+	pub fn fetch_page(&mut self, page_id: PageIdType) -> Option<PageRef> {
+		if let Some(found) = self.page_table.get(&page_id) {
+			let frame = Arc::clone(&self.frames[*found as usize]);
+			let mut page = frame.write().unwrap();
+			page.pin();
+			return Some(frame);
 		}
+		let free = self.fetch_free_frame();
+		if free.is_none() {
+			return None;
+		}
+		let frame = Arc::clone(&self.frames[free.unwrap() as usize]);
+		let mut page = frame.write().unwrap();
 		todo!()
 	}
 
@@ -64,6 +81,15 @@ impl<R: Replacer> BufferPoolManager<R> {
 	#[inline]
 	fn next_page_id(&mut self) -> PageIdType {
 		self.next_page_id.fetch_add(1, Ordering::Relaxed) as PageIdType
+	}
+
+	#[inline]
+	fn fetch_free_frame(&mut self) -> Option<FrameIdType> {
+		let mut free = self.free_frames.pop_front();
+		if free.is_none() {
+			free = self.replacer.victim();
+		}
+		return free;
 	}
 }
 

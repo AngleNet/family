@@ -12,7 +12,7 @@ mod table;
 
 pub struct Page {
 	id: PageIdType,
-	is_dirty: bool,
+	dirty: bool,
 	pin_count: u32,
 	data: [u8; PAGE_SIZE],
 }
@@ -24,7 +24,7 @@ impl Page {
 		Page {
 			id,
 			data: [0; PAGE_SIZE],
-			is_dirty: false,
+			dirty: false,
 			pin_count: 0,
 		}
 	}
@@ -36,8 +36,16 @@ impl Page {
 		self.pin_count = 0;
 	}
 
-	pub fn is_dirty(&self) -> bool {
-		self.is_dirty
+	pub fn pin(&mut self) {
+		self.pin_count += 1;
+	}
+
+	pub fn mark_dirty(&mut self) {
+		self.is_dirty = true;
+	}
+
+	pub fn dirty(&self) -> bool {
+		self.dirty
 	}
 
 	pub fn id(&self) -> PageIdType {
