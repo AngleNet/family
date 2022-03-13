@@ -12,8 +12,6 @@ pub struct DiskManager {
 	log: File,
 }
 
-pub type DiskManagerRef = Arc<RwLock<DiskManager>>;
-
 impl DiskManager {
 	pub fn new(name: &str) -> DiskManager {
 		// name format: {path}/{database name}.db; {path}/{database name}.log
@@ -40,10 +38,4 @@ impl DiskManager {
 	pub fn write_log(&mut self, data: &[u8]) {}
 
 	pub fn read_log(&self, offset: usize, data: &mut [u8]) {}
-}
-
-impl Into<DiskManagerRef> for DiskManager {
-	fn into(self) -> DiskManagerRef {
-		Arc::new(RwLock::new(self))
-	}
 }

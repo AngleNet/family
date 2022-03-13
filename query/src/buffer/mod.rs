@@ -2,21 +2,20 @@ pub mod replacer;
 
 use std::borrow::Borrow;
 use std::collections::{HashMap, LinkedList};
-use std::intrinsics::truncf32;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicU32, Ordering};
 use crate::buffer::replacer::{LRUReplacer, Replacer};
 use crate::store::page::{Page, PageRef};
 use crate::config::{FrameIdType, PageIdType};
-use crate::store::disk::{DiskManager, DiskManagerRef};
+use crate::store::disk::{DiskManager};
 
 pub struct BufferPoolManager<R: Replacer> {
-	disk_manager: DiskManagerRef,
+	disk_manager: DiskManager,
 	replacer: R,
 	frames: Vec<PageRef>,
 	page_table: HashMap<PageIdType, FrameIdType>,
 	free_frames: LinkedList<FrameIdType>,
-	next_page_id: AtomicU32,
+	next_page_id: u32,
 }
 
 pub type BufferPoolManagerRef<R> = Arc<RwLock<BufferPoolManager<R>>>;
@@ -24,12 +23,12 @@ pub type BufferPoolManagerRef<R> = Arc<RwLock<BufferPoolManager<R>>>;
 impl<R: Replacer> BufferPoolManager<R> {
 	pub fn new(size: usize, disk_manager: DiskManager, replacer: R) -> BufferPoolManager<R> {
 		BufferPoolManager {
-			disk_manager: disk_manager.into(),
+			disk_manager,
 			replacer,
 			frames: Vec::with_capacity(size),
 			page_table: HashMap::with_capacity(size),
 			free_frames: LinkedList::new(),
-			next_page_id: AtomicU32::new(0),
+			next_page_id: 0,
 		}
 	}
 
@@ -47,9 +46,8 @@ impl<R: Replacer> BufferPoolManager<R> {
 		}
 		let frame = Arc::clone(&self.frames[free.unwrap() as usize]);
 		let mut page = frame.write().unwrap();
-		if page.is_dirty() {
-			let mut disk = self.disk_manager.write().unwrap();
-			disk.write_page(page.id(), page.data());
+		if page.dirty() {
+			self.disk_manager.write_page(page.id(), page.data());
 		}
 		page.reset(self.next_page_id());
 		if new {
@@ -60,18 +58,30 @@ impl<R: Replacer> BufferPoolManager<R> {
 
 	pub fn fetch_page(&mut self, page_id: PageIdType) -> Option<PageRef> {
 		if let Some(found) = self.page_table.get(&page_id) {
+			// the page is already in mem, pin it again
 			let frame = Arc::clone(&self.frames[*found as usize]);
 			let mut page = frame.write().unwrap();
 			page.pin();
+			self.replacer.pin(*found);
 			return Some(frame);
 		}
 		let free = self.fetch_free_frame();
 		if free.is_none() {
 			return None;
 		}
+		// page is not in memory, flush the evicted frame and load new page from disk and pin it
 		let frame = Arc::clone(&self.frames[free.unwrap() as usize]);
 		let mut page = frame.write().unwrap();
-		todo!()
+		if page.dirty() {
+			self.disk_manager.write_page(page.id(), page.data());
+		}
+		self.page_table.remove(&page.id());
+		self.page_table.insert(page_id, free.unwrap());
+		page.reset(page_id);
+		page.pin();
+		self.replacer.pin(free.unwrap());
+		self.disk_manager.read_page(page_id, page.data_mut());
+		return Some(frame);
 	}
 
 	pub fn unpin_page(&mut self, page_id: PageIdType) {}
@@ -80,7 +90,8 @@ impl<R: Replacer> BufferPoolManager<R> {
 
 	#[inline]
 	fn next_page_id(&mut self) -> PageIdType {
-		self.next_page_id.fetch_add(1, Ordering::Relaxed) as PageIdType
+		self.next_page_id += 1;
+		return self.next_page_id as PageIdType;
 	}
 
 	#[inline]

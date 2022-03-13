@@ -32,7 +32,7 @@ impl Page {
 	pub fn reset(&mut self, id: PageIdType) {
 		self.id = id;
 		self.data.fill(0);
-		self.is_dirty = false;
+		self.dirty = false;
 		self.pin_count = 0;
 	}
 
@@ -41,7 +41,7 @@ impl Page {
 	}
 
 	pub fn mark_dirty(&mut self) {
-		self.is_dirty = true;
+		self.dirty = true;
 	}
 
 	pub fn dirty(&self) -> bool {
