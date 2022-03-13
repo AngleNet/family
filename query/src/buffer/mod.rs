@@ -1,40 +1,77 @@
+pub mod replacer;
+
+use std::borrow::Borrow;
+use std::collections::{HashMap, LinkedList};
 use std::sync::{Arc, RwLock};
-use crate::store::page::Page;
-use crate::config::PageIdType;
+use std::sync::atomic::{AtomicU32, Ordering};
+use crate::buffer::replacer::{LRUReplacer, Replacer};
+use crate::store::page::{Page, PageRef};
+use crate::config::{FrameIdType, PageIdType};
 use crate::store::disk::{DiskManager, DiskManagerRef};
 
-pub struct BufferPoolManager {
-	size: usize,
+pub struct BufferPoolManager<R: Replacer> {
 	disk_manager: DiskManagerRef,
+	replacer: R,
+	frames: Vec<PageRef>,
+	page_table: HashMap<PageIdType, FrameIdType>,
+	free_frames: LinkedList<FrameIdType>,
+	next_page_id: AtomicU32,
 }
 
-pub type BufferPoolManagerRef = Arc<RwLock<BufferPoolManager>>;
+pub type BufferPoolManagerRef<R> = Arc<RwLock<BufferPoolManager<R>>>;
 
-impl BufferPoolManager {
-	pub fn new(size: usize, disk_manager: DiskManager) -> BufferPoolManager {
+impl<R: Replacer> BufferPoolManager<R> {
+	pub fn new(size: usize, disk_manager: DiskManager, replacer: R) -> BufferPoolManager<R> {
 		BufferPoolManager {
-			size,
-			disk_manager: Arc::new(RwLock::new(disk_manager)),
+			disk_manager: disk_manager.into(),
+			replacer,
+			frames: Vec::with_capacity(size),
+			page_table: HashMap::with_capacity(size),
+			free_frames: LinkedList::new(),
+			next_page_id: AtomicU32::new(0),
 		}
 	}
 
-	pub fn new_page(&mut self) -> Option<Page> {
-		None
+	pub fn new_page(&mut self) -> PageRef {
+		// todo: What if no victims could be found?
+		let mut free = self.free_frames.pop_front();
+		if free.is_none() {
+			// this will block until we have found an victim actually
+			free = self.replacer.victim();
+		}
+		let frame = Arc::clone(&self.frames[free.unwrap() as usize]);
+		let mut page = frame.write().unwrap();
+		if page.is_dirty() {
+			let mut disk = self.disk_manager.write().unwrap();
+			disk.write_page(page.id(), page.data());
+		}
+		page.reset(self.next_page_id());
+		return frame;
 	}
 
-	pub fn fetch_page(&mut self, page_id: PageIdType) -> Page {
+	pub fn fetch_page(&mut self, page_id: PageIdType) -> PageRef {
+		let mut free = self.free_frames.pop_front();
+		if free.is_none() {
+			free = self.replacer.victim();
+		}
 		todo!()
 	}
 
 	pub fn unpin_page(&mut self, page_id: PageIdType) {}
 
 	pub fn flush_page(&mut self, page_id: PageIdType) {}
+
+	#[inline]
+	fn next_page_id(&mut self) -> PageIdType {
+		self.next_page_id.fetch_add(1, Ordering::Relaxed) as PageIdType
+	}
 }
 
 #[cfg(test)]
 mod test {
 	use std::fs;
 	use crate::buffer::BufferPoolManager;
+	use crate::buffer::replacer::LRUReplacer;
 	use crate::store::disk::DiskManager;
 
 	pub struct Holder {
@@ -75,7 +112,27 @@ mod test {
 		let holder = Holder::new();
 		let disk_manager = DiskManager::new(&holder.db);
 		let size = 10_usize;
-		let mut buf_manager = BufferPoolManager::new(size, disk_manager);
+		let mut buf_manager = BufferPoolManager::new(size, disk_manager, LRUReplacer {});
 		let page = buf_manager.new_page();
+	}
+
+	#[derive(Debug)]
+	struct A {
+		a: u32,
+	}
+
+	impl Drop for A {
+		fn drop(&mut self) {
+			println!("Dropping {}", self.a);
+		}
+	}
+
+	#[test]
+	fn test_scope() {
+		let mut a = None;
+		{
+			a = Some(A { a: 3 });
+		}
+		println!("{:?}", a)
 	}
 }

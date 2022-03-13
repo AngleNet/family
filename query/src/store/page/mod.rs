@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::ops::{Deref, DerefMut};
 use std::str::from_utf8;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use crate::config::PAGE_SIZE;
+use crate::config::{INVALID_PAGE_ID, PAGE_SIZE};
 use crate::store::disk::PageIdType;
 use crate::store::page::header::HeaderPage;
 use crate::store::page::table::TablePage;
@@ -12,6 +12,8 @@ mod table;
 
 pub struct Page {
 	id: PageIdType,
+	is_dirty: bool,
+	pin_count: u32,
 	data: [u8; PAGE_SIZE],
 }
 
@@ -22,7 +24,20 @@ impl Page {
 		Page {
 			id,
 			data: [0; PAGE_SIZE],
+			is_dirty: false,
+			pin_count: 0,
 		}
+	}
+
+	pub fn reset(&mut self, id: PageIdType) {
+		self.id = id;
+		self.data.fill(0);
+		self.is_dirty = false;
+		self.pin_count = 0;
+	}
+
+	pub fn is_dirty(&self) -> bool {
+		self.is_dirty
 	}
 
 	pub fn id(&self) -> PageIdType {
