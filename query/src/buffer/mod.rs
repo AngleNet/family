@@ -22,12 +22,16 @@ pub type BufferPoolManagerRef<R> = Arc<RwLock<BufferPoolManager<R>>>;
 
 impl<R: Replacer> BufferPoolManager<R> {
 	pub fn new(size: usize, disk_manager: DiskManager, replacer: R) -> BufferPoolManager<R> {
+		let mut frees = LinkedList::new();
+		for i in 0..size {
+			frees.push_back(i as FrameIdType);
+		}
 		BufferPoolManager {
 			disk_manager,
 			replacer,
 			frames: Vec::with_capacity(size),
 			page_table: HashMap::with_capacity(size),
-			free_frames: LinkedList::new(),
+			free_frames: frees,
 			next_page_id: 0,
 		}
 	}
@@ -45,13 +49,15 @@ impl<R: Replacer> BufferPoolManager<R> {
 			return None;
 		}
 		let frame = Arc::clone(&self.frames[free.unwrap() as usize]);
-		let mut page = frame.write().unwrap();
-		if page.dirty() {
-			self.disk_manager.write_page(page.id(), page.data());
-		}
-		page.reset(self.next_page_id());
-		if new {
-			self.page_table.insert(page.id(), free.unwrap());
+		{
+			let mut page = frame.write().unwrap();
+			if page.dirty() {
+				self.disk_manager.write_page(page.id(), page.data());
+			}
+			page.reset(self.next_page_id());
+			if new {
+				self.page_table.insert(page.id(), free.unwrap());
+			}
 		}
 		return Some(frame);
 	}
@@ -60,8 +66,6 @@ impl<R: Replacer> BufferPoolManager<R> {
 		if let Some(found) = self.page_table.get(&page_id) {
 			// the page is already in mem, pin it again
 			let frame = Arc::clone(&self.frames[*found as usize]);
-			let mut page = frame.write().unwrap();
-			page.pin();
 			self.replacer.pin(*found);
 			return Some(frame);
 		}
@@ -71,22 +75,24 @@ impl<R: Replacer> BufferPoolManager<R> {
 		}
 		// page is not in memory, flush the evicted frame and load new page from disk and pin it
 		let frame = Arc::clone(&self.frames[free.unwrap() as usize]);
-		let mut page = frame.write().unwrap();
-		if page.dirty() {
-			self.disk_manager.write_page(page.id(), page.data());
+		{
+			let mut page = frame.write().unwrap();
+			if page.dirty() {
+				self.disk_manager.write_page(page.id(), page.data());
+			}
+			self.page_table.remove(&page.id());
+			self.page_table.insert(page_id, free.unwrap());
+			page.reset(page_id);
+			self.replacer.pin(free.unwrap());
+			self.disk_manager.read_page(page_id, page.data_mut());
 		}
-		self.page_table.remove(&page.id());
-		self.page_table.insert(page_id, free.unwrap());
-		page.reset(page_id);
-		page.pin();
-		self.replacer.pin(free.unwrap());
-		self.disk_manager.read_page(page_id, page.data_mut());
 		return Some(frame);
 	}
 
-	pub fn unpin_page(&mut self, page_id: PageIdType) {}
-
-	pub fn flush_page(&mut self, page_id: PageIdType) {}
+	pub fn unpin_page(&mut self, page_id: PageIdType) {
+		let found = self.page_table.get(&page_id).unwrap();
+		self.replacer.unpin(*found);
+	}
 
 	#[inline]
 	fn next_page_id(&mut self) -> PageIdType {
@@ -107,11 +113,14 @@ impl<R: Replacer> BufferPoolManager<R> {
 #[cfg(test)]
 mod test {
 	use std::fs;
+	use rand::Fill;
+	use rand::prelude::*;
 	use crate::buffer::BufferPoolManager;
-	use crate::buffer::replacer::LRUReplacer;
+	use crate::buffer::replacer::{LRUReplacer, Replacer};
+	use crate::config::{FrameIdType, PAGE_SIZE, PageIdType};
 	use crate::store::disk::DiskManager;
 
-	pub struct Holder {
+	struct Holder {
 		pub db: String,
 		pub log: String,
 	}
@@ -144,32 +153,53 @@ mod test {
 		}
 	}
 
+	struct DummyReplacer;
+
+	impl Replacer for DummyReplacer {
+		fn victim(&self) -> Option<FrameIdType> {
+			return None;
+		}
+		fn pin(&mut self, frame_id: FrameIdType) {}
+
+		fn unpin(&mut self, frame_id: FrameIdType) {}
+	}
+
 	#[test]
 	fn binary_data_test() {
 		let holder = Holder::new();
-		let disk_manager = DiskManager::new(&holder.db);
 		let size = 10_usize;
-		let mut buf_manager = BufferPoolManager::new(size, disk_manager, LRUReplacer {});
-		let page = buf_manager.new_page();
-	}
-
-	#[derive(Debug)]
-	struct A {
-		a: u32,
-	}
-
-	impl Drop for A {
-		fn drop(&mut self) {
-			println!("Dropping {}", self.a);
+		let mut bm = BufferPoolManager::new(size, DiskManager::new(&holder.db), DummyReplacer {});
+		let p1 = bm.new_page();
+		assert!(p1.is_some());
+		let mut bytes = [0_u8; PAGE_SIZE];
+		let mut rng = rand::thread_rng();
+		bytes.try_fill(&mut rng).unwrap();
+		// insert terminal chars both in the middle and at end
+		bytes[PAGE_SIZE / 2] = b'\0';
+		bytes[PAGE_SIZE - 1] = b'\0';
+		let p1 = p1.unwrap();
+		let mut lock = p1.write().unwrap();
+		lock.data_mut().copy_from_slice(&bytes);
+		lock.mark_dirty();
+		for i in 1..size {
+			assert!(bm.new_page().is_some());
 		}
-	}
-
-	#[test]
-	fn test_scope() {
-		let mut a = None;
-		{
-			a = Some(A { a: 3 });
+		assert!(bm.new_page().is_none());
+		// after we unpin [0, 1, 2, 3, 4], we are able to create another 5 pages
+		for i in 0..5 {
+			bm.unpin_page(i as PageIdType);
 		}
-		println!("{:?}", a)
+		for i in 0..5 {
+			let page = bm.new_page();
+			assert!(page.is_some());
+			let page = page.unwrap();
+			let lock = page.read().unwrap();
+			bm.unpin_page(lock.id());
+		}
+		let page = bm.fetch_page(0 as PageIdType);
+		assert!(page.is_some());
+		let page = page.unwrap();
+		let lock = page.read().unwrap();
+		assert_eq!(bytes, lock.data());
 	}
 }
